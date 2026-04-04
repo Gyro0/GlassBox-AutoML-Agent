@@ -1,0 +1,15 @@
+glassbox_venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.ipynb_checkpoints/
+.pytest_cache/
+.coverage
+htmlcov/
