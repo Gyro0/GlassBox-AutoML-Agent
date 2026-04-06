@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=65.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glassbox"
+version = "0.1.0"
+description = "A transparent AutoML library built from scratch with NumPy"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.24.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4.0", "jupyter>=1.0.0"]
