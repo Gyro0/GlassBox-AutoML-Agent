@@ -7,6 +7,37 @@ from typing import Any
 import numpy as np
 
 
+def _is_boolean_like(unique_values: np.ndarray) -> bool:
+    """Return True when values are a canonical boolean representation."""
+    if unique_values.size == 0:
+        return False
+
+    if unique_values.dtype.kind == "b":
+        return True
+
+    allowed_numeric = {0, 1}
+    allowed_text = {"0", "1", "true", "false", "yes", "no", "y", "n", "t", "f"}
+
+    normalized: set[str] = set()
+    for value in unique_values.tolist():
+        if isinstance(value, (bool, np.bool_)):
+            normalized.add("1" if bool(value) else "0")
+            continue
+        if isinstance(value, (int, np.integer, float, np.floating)):
+            if float(value).is_integer() and int(value) in allowed_numeric:
+                normalized.add(str(int(value)))
+                continue
+            return False
+
+        text = str(value).strip().lower()
+        if text in allowed_text:
+            normalized.add(text)
+            continue
+        return False
+
+    return normalized.issubset(allowed_text) and len(normalized) <= 2
+
+
 def infer_column_types(
     data: dict[str, list[Any] | np.ndarray],
     unique_ratio_threshold: float = 0.1,
@@ -23,7 +54,7 @@ def infer_column_types(
         unique_values = np.unique(array)
         unique_count = int(unique_values.size)
 
-        if array.dtype.kind == "b" or unique_count == 2:
+        if _is_boolean_like(unique_values):
             inferred[column_name] = "boolean"
             continue
 
