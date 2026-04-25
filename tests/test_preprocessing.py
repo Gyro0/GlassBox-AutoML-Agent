@@ -1,5 +1,8 @@
 """Tests for preprocessing module."""
 
+import csv
+from pathlib import Path
+
 import pytest
 import numpy as np
 from glassbox.preprocessing.base import BaseTransformer
@@ -321,6 +324,17 @@ class TestLabelEncoder:
         assert X_encoded.shape == (2, 2)
         assert X_encoded.dtype == int
 
+    def test_label_encoder_warns_without_printing_for_unseen_categories(self, capsys):
+        """Unseen categories should warn and encode as -1 without print output."""
+        encoder = LabelEncoder().fit(np.array([["red"], ["blue"]]))
+
+        with pytest.warns(UserWarning, match="Unseen categories"):
+            encoded = encoder.transform(np.array([["green"]]))
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        np.testing.assert_array_equal(encoded, np.array([[-1]]))
+
 
 # ============================================================================
 # Tests for OneHotEncoder
@@ -427,3 +441,43 @@ class TestPreprocessingPipeline:
         
         # Check shape
         assert X_processed.shape == (3, 4)  # 2 numerical + 2 categorical
+
+    def test_pipeline_with_real_csv_sample(self):
+        """Load sample.csv and run numeric + categorical preprocessing end to end."""
+        sample_path = Path(__file__).resolve().parents[1] / "data" / "sample.csv"
+
+        with sample_path.open("r", encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+
+        numeric = np.array(
+            [
+                [
+                    float(row["age"]),
+                    np.nan if row["income"] == "" else float(row["income"]),
+                    float(row["visits"]),
+                ]
+                for row in rows
+            ],
+            dtype=float,
+        )
+        categorical = np.array(
+            [
+                [
+                    row["plan"],
+                    row["region"],
+                    row["is_student"],
+                ]
+                for row in rows
+            ],
+            dtype=object,
+        )
+
+        numeric_imputed = SimpleImputer(strategy="mean").fit_transform(numeric)
+        numeric_scaled = StandardScaler().fit_transform(numeric_imputed)
+        categorical_imputed = SimpleImputer(strategy="mode").fit_transform(categorical)
+        categorical_encoded = OneHotEncoder().fit_transform(categorical_imputed)
+        processed = np.hstack([numeric_scaled, categorical_encoded.astype(float)])
+
+        assert processed.shape[0] == len(rows)
+        assert processed.shape[1] > numeric.shape[1]
+        assert np.all(np.isfinite(processed))

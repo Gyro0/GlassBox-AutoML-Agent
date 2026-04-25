@@ -1,5 +1,10 @@
 """Categorical encoding transformers."""
 
+from __future__ import annotations
+
+import warnings
+from typing import Any, Self
+
 import numpy as np
 from glassbox.preprocessing.base import BaseTransformer
 from glassbox.utils.validation import check_array, check_is_fitted
@@ -36,11 +41,12 @@ class LabelEncoder(BaseTransformer):
            [1]])
     """
     
-    def __init__(self):
-        self.classes_ = None
-        self.mapping_ = None
+    def __init__(self) -> None:
+        self.classes_: np.ndarray | None = None
+        self.mapping_: dict[Any, int] | None = None
+        self.unseen_values_: list[Any] = []
     
-    def fit(self, X):
+    def fit(self, X: np.ndarray) -> Self:
         """
         Learn the categories and create mapping.
         
@@ -67,12 +73,12 @@ class LabelEncoder(BaseTransformer):
         
         return self
     
-    def transform(self, X):
+    def transform(self, X: np.ndarray) -> np.ndarray:
         """
         Encode categorical features as integers.
         
         Replaces each category with its corresponding integer label.
-        Unseen categories are encoded as -1 (with a warning printed).
+        Unseen categories are encoded as -1 and reported with a warning.
         
         Parameters
         ----------
@@ -93,14 +99,23 @@ class LabelEncoder(BaseTransformer):
         check_is_fitted(self, 'mapping_')
         
         X_encoded = np.zeros_like(X, dtype=int)
+        self.unseen_values_ = []
         
         for i, val in enumerate(X.flatten()):
             if val in self.mapping_:
                 X_encoded.flat[i] = self.mapping_[val]
             else:
-                # Unseen category - mark as -1
-                print(f"Warning: Unseen category '{val}' encoded as -1")
+                self.unseen_values_.append(val)
                 X_encoded.flat[i] = -1
+
+        if self.unseen_values_:
+            unique_unseen = sorted(set(self.unseen_values_), key=lambda value: repr(value))
+            warnings.warn(
+                "Unseen categories encoded as -1: "
+                + ", ".join(repr(value) for value in unique_unseen),
+                UserWarning,
+                stacklevel=2,
+            )
         
         return X_encoded.reshape(X.shape)
 
@@ -136,10 +151,10 @@ class OneHotEncoder(BaseTransformer):
            [0, 1, 1, 0]])  # red (2nd), medium (1st)
     """
     
-    def __init__(self):
-        self.categories_ = None
+    def __init__(self) -> None:
+        self.categories_: list[np.ndarray] | None = None
     
-    def fit(self, X):
+    def fit(self, X: np.ndarray) -> Self:
         """
         Learn the unique categories per column.
         
@@ -168,7 +183,7 @@ class OneHotEncoder(BaseTransformer):
         
         return self
     
-    def transform(self, X):
+    def transform(self, X: np.ndarray) -> np.ndarray:
         """
         Encode categorical features as one-hot vectors.
         

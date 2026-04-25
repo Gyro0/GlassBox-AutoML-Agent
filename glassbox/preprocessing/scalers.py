@@ -1,5 +1,9 @@
 """Scaling transformers for feature normalization."""
 
+from __future__ import annotations
+
+from typing import Self
+
 import numpy as np
 from glassbox.preprocessing.base import BaseTransformer
 from glassbox.utils.validation import check_array, check_is_fitted
@@ -37,11 +41,11 @@ class MinMaxScaler(BaseTransformer):
            [1. , 1. ]])
     """
     
-    def __init__(self):
-        self.min_ = None
-        self.max_ = None
+    def __init__(self) -> None:
+        self.min_: np.ndarray | None = None
+        self.max_: np.ndarray | None = None
     
-    def fit(self, X):
+    def fit(self, X: np.ndarray) -> Self:
         """
         Compute min and max per column.
         
@@ -60,7 +64,7 @@ class MinMaxScaler(BaseTransformer):
         self.max_ = np.max(X, axis=0)
         return self
     
-    def transform(self, X):
+    def transform(self, X: np.ndarray) -> np.ndarray:
         """
         Scale features to [0, 1].
         
@@ -124,11 +128,11 @@ class StandardScaler(BaseTransformer):
     >>> X_scaled.std(axis=0)   # Should be ~[1, 1]
     """
     
-    def __init__(self):
-        self.mean_ = None
-        self.std_ = None
+    def __init__(self) -> None:
+        self.mean_: np.ndarray | None = None
+        self.std_: np.ndarray | None = None
     
-    def fit(self, X):
+    def fit(self, X: np.ndarray) -> Self:
         """
         Compute mean and standard deviation per column.
         
@@ -147,7 +151,7 @@ class StandardScaler(BaseTransformer):
         self.std_ = np.std(X, axis=0)  # Population std (ddof=0)
         return self
     
-    def transform(self, X):
+    def transform(self, X: np.ndarray) -> np.ndarray:
         """
         Standardize features to mean 0 and std 1.
         

@@ -63,6 +63,22 @@ def _extract_feature_importances(best_result: dict[str, Any]) -> dict[str, float
     return feature_importances
 
 
+def _rank_feature_importances(
+    feature_importances: dict[str, float],
+    limit: int = 8,
+) -> list[dict[str, float | str]]:
+    """Return feature importances sorted by absolute magnitude."""
+    ranked = sorted(
+        feature_importances.items(),
+        key=lambda item: abs(item[1]),
+        reverse=True,
+    )
+    return [
+        {"feature": feature, "importance": float(importance)}
+        for feature, importance in ranked[:limit]
+    ]
+
+
 def generate_report(
     eda_summary: dict[str, Any],
     best_result: dict[str, Any],
@@ -73,11 +89,18 @@ def generate_report(
         estimator = best_result.get("best_estimator")
         best_model = estimator.__class__.__name__ if estimator is not None else None
 
+    cv_score = float(best_result.get("cv_score") or 0.0)
+    feature_importances = _extract_feature_importances(best_result)
     report = {
         "eda_summary": eda_summary,
         "best_model": best_model,
         "best_params": dict(best_result.get("best_params") or {}),
-        "cv_score": float(best_result.get("cv_score") or 0.0),
-        "feature_importances": _extract_feature_importances(best_result),
+        "cv_score": cv_score,
+        "score_summary": {
+            "cross_validation_score": round(cv_score, 4),
+            "higher_is_better": True,
+        },
+        "feature_importances": feature_importances,
+        "top_features": _rank_feature_importances(feature_importances),
     }
     return make_json_safe(report)
