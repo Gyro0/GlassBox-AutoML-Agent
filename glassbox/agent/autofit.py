@@ -38,6 +38,10 @@ class ModelSpec:
     scoring_fn: Callable[[np.ndarray, np.ndarray], float]
 
 
+def _clf_accuracy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    return float(classification_report(y_true, y_pred)["accuracy"])
+
+
 _MODEL_REGISTRY: dict[str, list[ModelSpec]] = {
     "regression": [
         ModelSpec(
@@ -48,6 +52,38 @@ _MODEL_REGISTRY: dict[str, list[ModelSpec]] = {
                 "learning_rate": [0.01, 0.05, 0.1],
                 "n_iterations": [300, 800, 1500],
                 "tol": [1e-7, 1e-6],
+            },
+            scoring_fn=r2_score,
+        ),
+        ModelSpec(
+            name="DecisionTreeRegressor",
+            module_path="glassbox.models.tree",
+            class_name="DecisionTreeRegressor",
+            search_space={
+                "max_depth": [3, 5, 8, None],
+                "min_samples_split": [2, 5, 10],
+            },
+            scoring_fn=r2_score,
+        ),
+        ModelSpec(
+            name="RandomForestRegressor",
+            module_path="glassbox.models.forest",
+            class_name="RandomForestRegressor",
+            search_space={
+                "n_estimators": [50, 100],
+                "max_depth": [5, 10, None],
+                "min_samples_split": [2, 5],
+            },
+            scoring_fn=r2_score,
+        ),
+        ModelSpec(
+            name="KNearestNeighbors_reg",
+            module_path="glassbox.models.knn",
+            class_name="KNearestNeighbors",
+            search_space={
+                "k": [3, 5],
+                "metric": ["euclidean", "manhattan"],
+                "task": ["regression"],
             },
             scoring_fn=r2_score,
         ),
@@ -63,9 +99,49 @@ _MODEL_REGISTRY: dict[str, list[ModelSpec]] = {
                 "tol": [1e-7, 1e-6],
                 "threshold": [0.4, 0.5, 0.6],
             },
-            scoring_fn=lambda y_true, y_pred: float(
-                classification_report(y_true, y_pred)["accuracy"]
-            ),
+            scoring_fn=_clf_accuracy,
+        ),
+        ModelSpec(
+            name="DecisionTreeClassifier",
+            module_path="glassbox.models.tree",
+            class_name="DecisionTreeClassifier",
+            search_space={
+                "max_depth": [3, 5, 8, None],
+                "min_samples_split": [2, 5, 10],
+            },
+            scoring_fn=_clf_accuracy,
+        ),
+        ModelSpec(
+            name="RandomForestClassifier",
+            module_path="glassbox.models.forest",
+            class_name="RandomForestClassifier",
+            search_space={
+                "n_estimators": [50, 100],
+                "max_depth": [5, 10, None],
+                "min_samples_split": [2, 5],
+            },
+            scoring_fn=_clf_accuracy,
+        ),
+        ModelSpec(
+            name="GaussianNaiveBayes",
+            module_path="glassbox.models.naive_bayes",
+            class_name="GaussianNaiveBayes",
+            search_space={
+                "alpha": [0.0, 0.5, 1.0],
+                "var_smoothing": [1e-9, 1e-7, 1e-5],
+            },
+            scoring_fn=_clf_accuracy,
+        ),
+        ModelSpec(
+            name="KNearestNeighbors_clf",
+            module_path="glassbox.models.knn",
+            class_name="KNearestNeighbors",
+            search_space={
+                "k": [3, 5],
+                "metric": ["euclidean", "manhattan"],
+                "task": ["classification"],
+            },
+            scoring_fn=_clf_accuracy,
         ),
     ],
 }

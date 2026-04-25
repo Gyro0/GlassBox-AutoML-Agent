@@ -52,13 +52,13 @@ def test_autofit_regression_pipeline_returns_structured_result(tmp_path) -> None
     assert runner.best_estimator_ is not None
     assert result is not None
     assert result["task"] == "regression"
-    assert result["best_model"] == "LinearRegression"
+    assert result["best_model"] in {"LinearRegression", "DecisionTreeRegressor", "RandomForestRegressor", "KNearestNeighbors_reg"}
     assert result["cv_score"] > 0.90
     assert result["feature_names"] == ["x1", "x2"]
     assert "x1" in result["eda_summary"]["column_types"]
     assert "x1" in result["feature_importances"]
     assert "best_estimator" not in result
-    assert result["candidate_models"] == ["LinearRegression"]
+    assert "LinearRegression" in result["candidate_models"]
     assert json.loads(json.dumps(result))["best_model"] == "LinearRegression"
 
 
@@ -84,12 +84,12 @@ def test_autofit_auto_detects_classification_and_handles_categorical_data(tmp_pa
     result = auto_fit(csv_path, "target", task="auto", search="grid", time_budget=10)
 
     assert result["task"] == "classification"
-    assert result["best_model"] == "LogisticRegression"
+    assert result["best_model"] in {"LogisticRegression", "DecisionTreeClassifier", "RandomForestClassifier", "GaussianNaiveBayes", "KNearestNeighbors_clf"}
     assert result["cv_score"] >= 0.80
     assert any(name.startswith("country=") for name in result["feature_names"])
     assert result["eda_summary"]["column_types"]["country"] == "categorical"
-    assert result["candidate_models"] == ["LogisticRegression"]
-    assert result["search_results"][0]["model"] == "LogisticRegression"
+    assert "LogisticRegression" in result["candidate_models"]
+    assert result["search_results"][0]["model"] in result["candidate_models"]
     assert json.loads(json.dumps(result))["task"] == "classification"
 
 
