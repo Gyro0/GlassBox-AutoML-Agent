@@ -19,7 +19,6 @@ from glassbox.eda import (
     iqr_outlier_handler,
     profile_numeric_columns,
 )
-from glassbox.evaluation.classification import classification_report
 from glassbox.evaluation.regression import r2_score
 from glassbox.optimization import GridSearchCV, KFoldCV, RandomSearchCV
 from glassbox.preprocessing import OneHotEncoder, SimpleImputer, StandardScaler
@@ -39,7 +38,8 @@ class ModelSpec:
 
 
 def _clf_accuracy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    return float(classification_report(y_true, y_pred)["accuracy"])
+    """Return accuracy without requiring every validation fold to contain both classes."""
+    return float(np.mean(y_true == y_pred))
 
 
 _MODEL_REGISTRY: dict[str, list[ModelSpec]] = {
@@ -315,6 +315,8 @@ def _build_numerical_summary(
             "correlation_matrix": [],
             "correlation_feature_names": [],
             "high_collinearity": [],
+            "profile_table": [],
+            "strongest_correlations": [],
         }
 
     profile = profile_numeric_columns(numeric_matrix, numeric_feature_names)
@@ -322,6 +324,36 @@ def _build_numerical_summary(
         numeric_matrix,
         feature_names=numeric_feature_names,
     )
+
+    profile_table = []
+    for feature_name in numeric_feature_names:
+        stats = profile[feature_name]
+        profile_table.append(
+            {
+                "feature": feature_name,
+                "mean": round(float(stats["mean"]), 4),
+                "median": round(float(stats["median"]), 4),
+                "std": round(float(stats["std"]), 4),
+                "skewness": round(float(stats["skewness"]), 4),
+                "kurtosis": round(float(stats["kurtosis"]), 4),
+            }
+        )
+
+    strongest_correlations: list[dict[str, Any]] = []
+    for i in range(len(corr_names)):
+        for j in range(i + 1, len(corr_names)):
+            strongest_correlations.append(
+                {
+                    "feature_a": corr_names[i],
+                    "feature_b": corr_names[j],
+                    "correlation": round(float(corr_matrix[i, j]), 4),
+                }
+            )
+    strongest_correlations.sort(
+        key=lambda item: abs(float(item["correlation"])),
+        reverse=True,
+    )
+
     return {
         "numerical_profile": profile,
         "correlation_matrix": corr_matrix.tolist(),
@@ -330,6 +362,31 @@ def _build_numerical_summary(
             {"feature_a": first, "feature_b": second, "correlation": float(value)}
             for first, second, value in high_collinearity
         ],
+        "profile_table": profile_table,
+        "strongest_correlations": strongest_correlations[:5],
+    }
+
+
+def _build_eda_overview(
+    column_types: dict[str, str],
+    target_type: str,
+    outlier_rows: dict[str, list[int]],
+    high_collinearity: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Create a compact, human-readable EDA summary for reports and demos."""
+    type_counts = {
+        column_type: list(column_types.values()).count(column_type)
+        for column_type in ("numerical", "categorical", "boolean")
+    }
+    return {
+        "feature_count": len(column_types),
+        "type_counts": type_counts,
+        "target_type": target_type,
+        "outlier_counts": {
+            feature: len(rows)
+            for feature, rows in outlier_rows.items()
+        },
+        "high_collinearity_count": len(high_collinearity),
     }
 
 
@@ -569,12 +626,19 @@ class AutoFit:
         if best_searcher is None or best_searcher.best_model_ is None:
             raise RuntimeError("AutoFit could not select a best model.")
 
+        column_types = {name: inferred_types[name] for name in feature_names}
         eda_summary = {
-            "column_types": {name: inferred_types[name] for name in feature_names},
+            "column_types": column_types,
             "target_type": inferred_types[target_column],
             "outlier_rows": outlier_rows,
             **numeric_summary,
         }
+        eda_summary["overview"] = _build_eda_overview(
+            column_types=column_types,
+            target_type=inferred_types[target_column],
+            outlier_rows=outlier_rows,
+            high_collinearity=eda_summary["high_collinearity"],
+        )
 
         best_result = {
             "best_model": best_model_name or best_searcher.best_model_.__class__.__name__,

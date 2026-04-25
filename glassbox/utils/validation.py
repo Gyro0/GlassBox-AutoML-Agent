@@ -1,9 +1,13 @@
 """Data validation utilities for the GlassBox library."""
 
+from __future__ import annotations
+
+from typing import Any
+
 import numpy as np
 
 
-def check_array(X):
+def check_array(X: Any) -> None:
     """
     Validate that X is a NumPy ndarray.
     
@@ -31,7 +35,7 @@ def check_array(X):
         )
 
 
-def check_is_fitted(obj, attributes):
+def check_is_fitted(obj: object, attributes: str | list[str]) -> None:
     """
     Check that transformer has been fitted.
     
@@ -70,7 +74,7 @@ def check_is_fitted(obj, attributes):
             )
 
 
-def check_consistent_length(X, y):
+def check_consistent_length(X: np.ndarray, y: np.ndarray) -> None:
     """
     Check that X and y have the same number of samples.
     

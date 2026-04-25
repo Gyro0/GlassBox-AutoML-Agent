@@ -1,6 +1,11 @@
 """Abstract base class for all preprocessing transformers."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from typing import Self
+
+import numpy as np
 
 
 class BaseTransformer(ABC):
@@ -26,7 +31,7 @@ class BaseTransformer(ABC):
     """
     
     @abstractmethod
-    def fit(self, X):
+    def fit(self, X: np.ndarray) -> Self:
         """
         Learn transformation parameters from X.
         
@@ -52,7 +57,7 @@ class BaseTransformer(ABC):
         pass
     
     @abstractmethod
-    def transform(self, X):
+    def transform(self, X: np.ndarray) -> np.ndarray:
         """
         Apply learned transformation to X.
         
@@ -78,7 +83,7 @@ class BaseTransformer(ABC):
         """
         pass
     
-    def fit_transform(self, X):
+    def fit_transform(self, X: np.ndarray) -> np.ndarray:
         """
         Fit to X, then transform it.
         
