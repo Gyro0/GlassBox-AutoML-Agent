@@ -1,23 +1,10 @@
-"""Linear models implemented from scratch using NumPy only.
+"""Linear models implemented from scratch using NumPy.
 
-This module provides two models:
+LinearRegression — batch gradient descent on MSE loss.
+LogisticRegression — batch gradient descent on binary cross-entropy.
 
-* **LinearRegression** — ordinary least-squares regression trained via
-  batch gradient descent with MSE loss.
-* **LogisticRegression** — binary logistic classifier trained via batch
-  gradient descent with binary cross-entropy (log-loss).
-
-Both models share the same gradient-descent backbone and expose
-``loss_history`` so the optimization layer can inspect convergence.
-
-Implementation notes
---------------------
-* A bias (intercept) column of ones is prepended internally so the user
-  never needs to worry about it.
-* Numerical guards (``np.clip`` on sigmoid) prevent overflow in float64
-  arithmetic.
-* Weight initialisation uses small random values (He-style scaling)
-  rather than zeros to avoid symmetry issues in deeper pipelines.
+Both expose loss_history for convergence inspection.
+Bias is prepended internally; the caller never sees it.
 """
 
 from __future__ import annotations
@@ -98,7 +85,6 @@ class LinearRegression(BaseModel):
         X_b = self._add_bias(X)
         n_samples, n_features = X_b.shape
 
-        # He-style initialization scaled to number of input features
         rng = np.random.default_rng(seed=42)
         self.weights_ = rng.normal(
             loc=0.0,
@@ -325,15 +311,7 @@ class LogisticRegression(BaseModel):
     # ------------------------------------------------------------------
     @staticmethod
     def _sigmoid(z: np.ndarray) -> np.ndarray:
-        """Numerically stable sigmoid function.
-
-        Uses the identity:
-            sigmoid(z) = 1 / (1 + exp(-z))
-
-        Clipping *z* to [-500, 500] prevents float64 overflow in
-        ``np.exp`` while keeping the function accurate in all practical
-        ranges.
-        """
+        """Sigmoid with z clipped to [-500, 500] to prevent float64 overflow."""
         z = np.clip(z, -500.0, 500.0)
         return 1.0 / (1.0 + np.exp(-z))
 

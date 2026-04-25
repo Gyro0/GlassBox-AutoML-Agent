@@ -1,26 +1,11 @@
-"""Random forest models implemented from scratch using NumPy only.
+"""Random forest models implemented from scratch using NumPy.
 
-This module provides two ensemble models built on top of ``tree.py``:
+RandomForestClassifier — majority vote over bootstrapped trees.
+RandomForestRegressor  — mean prediction over bootstrapped trees.
 
-* **RandomForestClassifier** — aggregates tree predictions by majority vote.
-* **RandomForestRegressor**  — aggregates tree predictions by mean.
-
-How it works
-------------
-For each of the ``n_estimators`` trees:
-
-1. **Bootstrap sampling** — draw ``n_samples`` rows *with replacement* from
-   the training data.  On average ~63% of distinct rows appear in each
-   bootstrap sample; the rest form the natural out-of-bag set.
-2. **Feature subspace** — at *every split* inside a tree, only
-   ``max_features`` randomly chosen features are considered.  By default
-   this is ``ceil(sqrt(n_features))`` for classifiers and
-   ``ceil(n_features / 3)`` for regressors (matching Scikit-Learn defaults).
-   This decorrelates the trees and reduces overfitting.
-3. **Aggregation** — classifier uses majority vote; regressor uses mean.
-
-Feature importances are computed as the average of each tree's
-``feature_importances_`` array, weighted equally.
+Each tree sees a bootstrap sample of the data and only max_features columns
+at each split, which decorrelates the ensemble and reduces overfitting.
+Feature importances are averaged across all trees.
 """
 
 from __future__ import annotations
