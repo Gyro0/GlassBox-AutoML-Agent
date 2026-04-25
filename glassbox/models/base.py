@@ -25,11 +25,9 @@ import numpy as np
 
 class BaseModel(ABC):
     """Abstract base class shared by every GlassBox estimator.
-
     Parameters
     ----------
     None — constructor parameters are defined by each concrete subclass.
-
     Attributes
     ----------
     _fitted : bool
@@ -48,7 +46,6 @@ class BaseModel(ABC):
     @abstractmethod
     def fit(self, X: np.ndarray, y: np.ndarray) -> "BaseModel":
         """Learn model parameters from training data.
-
         Parameters
         ----------
         X : np.ndarray, shape (n_samples, n_features)
@@ -65,12 +62,10 @@ class BaseModel(ABC):
     @abstractmethod
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Generate predictions for new data.
-
         Parameters
         ----------
         X : np.ndarray, shape (n_samples, n_features)
             Feature matrix.
-
         Returns
         -------
         np.ndarray, shape (n_samples,)
@@ -83,12 +78,9 @@ class BaseModel(ABC):
     # ------------------------------------------------------------------
     def score(self, X: np.ndarray, y: np.ndarray) -> float:
         """Return the default evaluation metric on the given data.
-
         * **Classifiers** → accuracy  (fraction of correct predictions).
         * **Regressors**  → R² coefficient of determination.
-
         Subclasses may override this to change the default metric.
-
         Parameters
         ----------
         X : np.ndarray, shape (n_samples, n_features)
@@ -117,7 +109,6 @@ class BaseModel(ABC):
 
     def _is_classifier(self) -> bool:
         """Return ``True`` if this model is a classifier.
-
         The default heuristic checks for the ``_task`` attribute set by
         subclasses.  Override if a different mechanism is preferred.
         """
@@ -134,14 +125,12 @@ class BaseModel(ABC):
     @staticmethod
     def _validate_inputs(X: np.ndarray, y: np.ndarray | None = None) -> None:
         """Run basic sanity checks on input arrays.
-
         Parameters
         ----------
         X : np.ndarray
             Must be a 2-D numeric array.
         y : np.ndarray or None
             If provided, must be 1-D with length equal to ``X.shape[0]``.
-
         Raises
         ------
         TypeError
@@ -177,7 +166,6 @@ class BaseModel(ABC):
 
     def get_params(self) -> dict:
         """Return a dictionary of constructor parameters.
-
         The default implementation inspects ``__init__`` and collects
         instance attributes that match parameter names.  Subclasses with
         non-standard init signatures may override this.
