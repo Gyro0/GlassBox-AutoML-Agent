@@ -113,11 +113,19 @@ Launch the notebook:
 jupyter notebook notebooks/demo.ipynb
 ```
 
-Run the Scikit-Learn comparison benchmark:
+Run the Scikit-Learn comparison benchmark for regression:
 
 ```bash
-python3 benchmarks/sklearn_comparison.py
+python benchmarks/sklearn_comparison.py --task regression --csv data/_uploaded.csv --target Delay
 ```
+
+Run the Scikit-Learn comparison benchmark for classification:
+
+```bash
+python benchmarks/sklearn_comparison.py --task classification --csv data/classification.csv --target stroke
+```
+
+If `--target` is omitted, the script uses the last column in the CSV as the prediction target.
 
 Scikit-Learn is used only in the benchmark script. The `glassbox/` package itself remains NumPy-only.
 
