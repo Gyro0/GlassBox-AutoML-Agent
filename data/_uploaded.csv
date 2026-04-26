@@ -1,10 +1,10 @@
 UnitID,City,Zipcode,Battalion,StationArea,Box,OriginalPriority,Priority,ALSUnit,CallTypeGroup,NumAlarms,UnitType,UnitSequenceInCallDispatch,FirePreventionDistrict,SupervisorDistrict,Neighborhood,Delay
-T13,SF,94109.0,B04,38,3362,3,3,False,Unknown,1,TRUCK,2.0,4.0,5.0,Pacific Heights,2.95
-M17,SF,94124.0,B10,42,6495,3,3,True,Unknown,1,MEDIC,1.0,10.0,10.0,Bayview Hunters Point,4.7
-M41,SF,94102.0,B03,01,1455,3,3,True,Unknown,1,MEDIC,2.0,3.0,6.0,Tenderloin,2.4333334
-E11,SF,94110.0,B06,32,5626,3,3,False,Unknown,1,ENGINE,1.0,6.0,9.0,Bernal Heights,1.5
-B04,SF,94109.0,B04,03,3223,3,3,False,Unknown,1,CHIEF,2.0,4.0,2.0,Western Addition,3.4833333
-T08,SF,94105.0,B03,35,2122,3,3,False,Unknown,1,TRUCK,2.0,3.0,6.0,Financial District/South Beach,1.75
+T13,SF,94109.0,B04,38,3362,3,3,False,,1,TRUCK,2.0,4.0,5.0,Pacific Heights,2.95
+M17,SF,94124.0,B10,42,6495,3,3,True,,1,MEDIC,1.0,10.0,10.0,Bayview Hunters Point,4.7
+M41,SF,94102.0,B03,01,1455,3,3,True,,1,MEDIC,2.0,3.0,6.0,Tenderloin,2.4333334
+E11,SF,94110.0,B06,32,5626,3,3,False,,1,ENGINE,1.0,6.0,9.0,Bernal Heights,1.5
+B04,SF,94109.0,B04,03,3223,3,3,False,,1,CHIEF,2.0,4.0,2.0,Western Addition,3.4833333
+T08,SF,94105.0,B03,35,2122,3,3,False,,1,TRUCK,2.0,3.0,6.0,Financial District/South Beach,1.75
 E33,SF,94112.0,B09,33,8324,3,3,False,,1,ENGINE,2.0,9.0,11.0,Oceanview/Merced/Ingleside,2.7166667
 E36,SF,94102.0,B02,03,3114,3,3,False,,1,ENGINE,1.0,2.0,6.0,Tenderloin,1.7833333
 E05,SF,94115.0,B04,05,3513,3,3,False,,1,ENGINE,1.0,4.0,5.0,Japantown,1.5166667
