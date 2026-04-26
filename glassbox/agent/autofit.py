@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import csv
+import io
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 import numpy as np
 
@@ -172,27 +173,44 @@ def _can_parse_float(values: list[str]) -> bool:
     return True
 
 
+def _read_csv_columns_from_handle(
+    handle: IO[str],
+) -> tuple[list[str], dict[str, list[str]]]:
+    """Load a CSV from any text handle into a column-oriented dictionary."""
+    reader = csv.DictReader(handle)
+    fieldnames = reader.fieldnames
+    if fieldnames is None:
+        raise ValueError("CSV file must include a header row.")
+
+    columns: dict[str, list[str]] = {field: [] for field in fieldnames}
+    for row in reader:
+        for field in fieldnames:
+            columns[field].append(row.get(field, ""))
+
+    if not columns or len(next(iter(columns.values()), [])) == 0:
+        raise ValueError("CSV file must contain at least one data row.")
+
+    return list(fieldnames), columns
+
+
 def _read_csv_columns(csv_path: str) -> tuple[list[str], dict[str, list[str]]]:
-    """Load a CSV file into a column-oriented dictionary."""
+    """Load a CSV file from disk into a column-oriented dictionary."""
     path = Path(csv_path)
     if not path.exists():
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
     with path.open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle)
-        fieldnames = reader.fieldnames
-        if fieldnames is None:
-            raise ValueError("CSV file must include a header row.")
+        return _read_csv_columns_from_handle(handle)
 
-        columns = {field: [] for field in fieldnames}
-        for row in reader:
-            for field in fieldnames:
-                columns[field].append(row.get(field, ""))
 
-    if not columns or len(next(iter(columns.values()), [])) == 0:
-        raise ValueError("CSV file must contain at least one data row.")
-
-    return fieldnames, columns
+def _read_csv_columns_from_bytes(
+    data: bytes,
+) -> tuple[list[str], dict[str, list[str]]]:
+    """Load a CSV from in-memory bytes."""
+    if not isinstance(data, (bytes, bytearray)):
+        raise TypeError("CSV bytes input must be bytes or bytearray.")
+    text = bytes(data).decode("utf-8-sig")
+    return _read_csv_columns_from_handle(io.StringIO(text))
 
 
 def _prepare_columns_for_type_inference(
@@ -333,6 +351,7 @@ def _build_numerical_summary(
                 "feature": feature_name,
                 "mean": round(float(stats["mean"]), 4),
                 "median": round(float(stats["median"]), 4),
+                "mode": round(float(stats["mode"]), 4),
                 "std": round(float(stats["std"]), 4),
                 "skewness": round(float(stats["skewness"]), 4),
                 "kurtosis": round(float(stats["kurtosis"]), 4),
@@ -523,6 +542,20 @@ class AutoFit:
     def fit(self, csv_path: str, target_column: str) -> "AutoFit":
         """Run the current AutoFit pipeline and store the result."""
         fieldnames, raw_columns = _read_csv_columns(csv_path)
+        return self._fit_columns(fieldnames, raw_columns, target_column)
+
+    def fit_bytes(self, csv_bytes: bytes, target_column: str) -> "AutoFit":
+        """Run AutoFit against an in-memory CSV payload."""
+        fieldnames, raw_columns = _read_csv_columns_from_bytes(csv_bytes)
+        return self._fit_columns(fieldnames, raw_columns, target_column)
+
+    def _fit_columns(
+        self,
+        fieldnames: list[str],
+        raw_columns: dict[str, list[str]],
+        target_column: str,
+    ) -> "AutoFit":
+        """Shared pipeline used by both file- and bytes-based entrypoints."""
         if target_column not in raw_columns:
             raise ValueError(f"Target column '{target_column}' was not found in the CSV header.")
 
@@ -681,3 +714,16 @@ def auto_fit(
     """Run the current AutoFit pipeline and return a structured result."""
     runner = AutoFit(task=task, search=search, time_budget=time_budget)
     return runner.run(csv_path, target_column)
+
+
+def auto_fit_from_bytes(
+    csv_bytes: bytes,
+    target_column: str,
+    task: str = "auto",
+    search: str = "random",
+    time_budget: int = 120,
+) -> dict[str, Any]:
+    """Run AutoFit against an in-memory CSV payload and return a structured result."""
+    runner = AutoFit(task=task, search=search, time_budget=time_budget)
+    runner.fit_bytes(csv_bytes, target_column)
+    return runner.result_

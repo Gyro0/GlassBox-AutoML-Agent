@@ -292,8 +292,8 @@ class LogisticRegression(BaseModel):
             Predicted class labels.
         """
         self._check_is_fitted()
-        probas = self.predict_proba(X)
-        preds = (probas >= self.threshold).astype(int)
+        positive_proba = self.predict_proba(X)[:, 1]
+        preds = (positive_proba >= self.threshold).astype(int)
 
         # Map back to original class labels if they weren't 0/1
         if self.classes_ is not None and not np.array_equal(
@@ -304,7 +304,7 @@ class LogisticRegression(BaseModel):
         return preds
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        """Return predicted probabilities for the positive class.
+        """Return predicted class probabilities.
 
         Parameters
         ----------
@@ -312,13 +312,18 @@ class LogisticRegression(BaseModel):
 
         Returns
         -------
-        np.ndarray, shape (n_samples,)
-            Probability estimates in [0, 1].
+        np.ndarray, shape (n_samples, 2)
+            Column 0 holds P(class = self.classes_[0]); column 1 holds
+            P(class = self.classes_[1]). Each row sums to 1. Returning a
+            2-D array keeps the contract identical to the other
+            classifiers in the model zoo (DecisionTree, RandomForest,
+            GaussianNaiveBayes).
         """
         self._check_is_fitted()
         self._validate_inputs(X)
         X_b = self._add_bias(X)
-        return self._sigmoid(X_b @ self.weights_)
+        positive = self._sigmoid(X_b @ self.weights_)
+        return np.column_stack([1.0 - positive, positive])
 
     # ------------------------------------------------------------------
     # Internal helpers

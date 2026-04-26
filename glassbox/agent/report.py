@@ -79,6 +79,49 @@ def _rank_feature_importances(
     ]
 
 
+def _build_explanation(
+    best_model: str | None,
+    cv_score: float,
+    top_features: list[dict[str, float | str]],
+    eda_summary: dict[str, Any],
+) -> list[str]:
+    """Generate short natural-language bullets the agent can echo to the user."""
+    bullets: list[str] = []
+    if best_model is not None:
+        bullets.append(
+            f"Selected {best_model} with cross-validation score {round(cv_score, 4)}."
+        )
+
+    if top_features:
+        leader = top_features[0]
+        bullets.append(
+            f"Strongest signal: '{leader['feature']}' "
+            f"(importance {round(float(leader['importance']), 4)})."
+        )
+        if len(top_features) >= 3:
+            runners = ", ".join(f"'{item['feature']}'" for item in top_features[1:3])
+            bullets.append(f"Other influential features: {runners}.")
+
+    high_collinearity = eda_summary.get("high_collinearity") or []
+    if high_collinearity:
+        first = high_collinearity[0]
+        bullets.append(
+            f"Heads up: '{first['feature_a']}' and '{first['feature_b']}' "
+            "are highly collinear, so their individual contributions overlap."
+        )
+
+    outlier_rows = eda_summary.get("outlier_rows") or {}
+    flagged = {name: rows for name, rows in outlier_rows.items() if rows}
+    if flagged:
+        worst = max(flagged.items(), key=lambda item: len(item[1]))
+        bullets.append(
+            f"IQR flagged {len(worst[1])} outlier row(s) in '{worst[0]}'; "
+            "they were capped before training."
+        )
+
+    return bullets
+
+
 def generate_report(
     eda_summary: dict[str, Any],
     best_result: dict[str, Any],
@@ -91,6 +134,7 @@ def generate_report(
 
     cv_score = float(best_result.get("cv_score") or 0.0)
     feature_importances = _extract_feature_importances(best_result)
+    top_features = _rank_feature_importances(feature_importances)
     report = {
         "eda_summary": eda_summary,
         "best_model": best_model,
@@ -101,6 +145,12 @@ def generate_report(
             "higher_is_better": True,
         },
         "feature_importances": feature_importances,
-        "top_features": _rank_feature_importances(feature_importances),
+        "top_features": top_features,
+        "explanation": _build_explanation(
+            best_model=best_model,
+            cv_score=cv_score,
+            top_features=top_features,
+            eda_summary=eda_summary,
+        ),
     }
     return make_json_safe(report)

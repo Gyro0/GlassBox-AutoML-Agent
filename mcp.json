@@ -1,0 +1,79 @@
+{
+  "name": "glassbox-automl",
+  "version": "0.1.0",
+  "description": "Transparent NumPy-only AutoML, exposed as an IronClaw MCP tool.",
+  "runtime": {
+    "type": "python",
+    "python_version": ">=3.11",
+    "command": ["python", "-m", "glassbox.agent.mcp_server"]
+  },
+  "tools": [
+    {
+      "name": "auto_fit",
+      "description": "Run end-to-end AutoML on a CSV dataset. The agent should pass the CSV either as an on-disk path (csv_path) or as base64-encoded bytes (csv_b64). Returns a JSON report with EDA summary, model leaderboard, the best model, its hyperparameters, the cross-validation score, and feature importances.",
+      "entrypoint": "glassbox.agent.mcp_tool:auto_fit_tool",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "csv_path": {
+            "type": "string",
+            "description": "Filesystem path to a CSV. Mutually exclusive with csv_b64."
+          },
+          "csv_b64": {
+            "type": "string",
+            "description": "Base64-encoded CSV body. Use when there is no host filesystem path to reference."
+          },
+          "target_column": {
+            "type": "string",
+            "description": "Header name of the target column to predict."
+          },
+          "task": {
+            "type": "string",
+            "enum": ["auto", "classification", "regression"],
+            "default": "auto"
+          },
+          "search": {
+            "type": "string",
+            "enum": ["random", "grid"],
+            "default": "random"
+          },
+          "time_budget": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 120,
+            "description": "Soft wall-clock cap (seconds) for random search."
+          }
+        },
+        "required": ["target_column"],
+        "oneOf": [
+          {"required": ["csv_path"]},
+          {"required": ["csv_b64"]}
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "description": "AutoFit report. The MCP server returns this object directly on success; failures surface as MCP error responses. The CLI shim at glassbox.agent.mcp_tool wraps the same payload as {\"ok\": true, \"report\": ...} or {\"ok\": false, \"error\": ...}.",
+        "properties": {
+          "task": {"type": "string", "enum": ["classification", "regression"]},
+          "best_model": {"type": "string"},
+          "best_params": {"type": "object"},
+          "cv_score": {"type": "number"},
+          "score_summary": {"type": "object"},
+          "feature_names": {"type": "array", "items": {"type": "string"}},
+          "feature_importances": {"type": "object"},
+          "top_features": {"type": "array"},
+          "explanation": {"type": "array", "items": {"type": "string"}},
+          "eda_summary": {"type": "object"},
+          "search_results": {"type": "array"},
+          "candidate_models": {"type": "array", "items": {"type": "string"}},
+          "processed_shape": {"type": "array", "items": {"type": "integer"}}
+        },
+        "required": ["task", "best_model", "cv_score", "explanation"]
+      }
+    }
+  ],
+  "permissions": {
+    "filesystem": ["read"],
+    "network": []
+  }
+}

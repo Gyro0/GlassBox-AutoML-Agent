@@ -1,4 +1,3 @@
-glassbox_venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -13,3 +12,11 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
+node_modules/
+
+# IronClaw / agent secrets — never commit
+.env
+.env.*
+ironclaw.key
+agent_private_key*
+.ironclaw/

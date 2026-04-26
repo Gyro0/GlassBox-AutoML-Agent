@@ -151,3 +151,56 @@ Run the test suite from the repository root:
 ```bash
 python3 -m pytest -q
 ```
+
+## IronClaw / MCP Tool
+
+The library exposes a single tool, `auto_fit`, through three surfaces:
+
+- **`glassbox.agent.mcp_server`** — a FastMCP server over stdio, the IronClaw deployment target.
+- **`glassbox.agent.mcp_tool`** — a JSON-in/JSON-out CLI shim for scripted/sandbox testing.
+- **`mcp.json`** — reference manifest documenting the tool schema (not consumed by IronClaw directly).
+
+### Register with IronClaw
+
+After SSHing to your IronClaw box and `pip install -e .[mcp]`:
+
+```bash
+ironclaw mcp add glassbox \
+  --transport stdio \
+  --command python \
+  --arg -m --arg glassbox.agent.mcp_server
+```
+
+IronClaw stores the registration in `~/.ironclaw/mcp-servers.json` and spawns the server over stdio whenever the agent calls the tool. Verify with `ironclaw mcp list`.
+
+### Run the tool directly (path mode)
+
+```bash
+python -m glassbox.agent.mcp_tool --input '{
+  "csv_path": "data/sample.csv",
+  "target_column": "purchased",
+  "task": "auto",
+  "search": "random",
+  "time_budget": 20
+}'
+```
+
+Run the tool inside a sandbox where there is no host filesystem (bytes mode):
+
+```bash
+python -c "import base64,json,sys; \
+  print(json.dumps({'csv_b64': base64.b64encode(open('data/sample.csv','rb').read()).decode(), \
+                    'target_column':'purchased'}))" \
+  | python -m glassbox.agent.mcp_tool
+```
+
+The response is a single JSON object: `{"ok": true, "report": {...}}` on success, or `{"ok": false, "error": "..."}` on failure. The report includes an `explanation` array of short bullets the agent can repeat back to the user.
+
+### Agent private key
+
+Never commit the IronClaw agent private key. Use one of:
+
+1. Environment variable: `export IRONCLAW_AGENT_PRIVATE_KEY=...` (or place it in a local `.env` — already gitignored).
+2. The IronClaw CLI's own keystore at `~/.ironclaw/credentials` (preferred for production).
+
+The `glassbox/` package itself never reads the key; only the IronClaw runtime does, when registering the agent.

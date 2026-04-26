@@ -212,9 +212,11 @@ class KNearestNeighbors(BaseModel):
 
         distances = self._compute_distances(X)
 
-        # Indices of the k nearest neighbours for each test sample
+        # Indices of the k nearest neighbours for each test sample.
+        # `kth=self.k - 1` keeps the pivot in-bounds when k == n_train
+        # (np.argpartition requires kth in [0, n_train - 1]).
         # Shape: (n_test, k)
-        nn_indices = np.argpartition(distances, kth=self.k, axis=1)[:, : self.k]
+        nn_indices = np.argpartition(distances, kth=self.k - 1, axis=1)[:, : self.k]
 
         return self._aggregate(nn_indices)
 
