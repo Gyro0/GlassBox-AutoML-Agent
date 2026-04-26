@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import time
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -488,6 +489,7 @@ def _build_searcher(
     cv: KFoldCV,
     scoring_fn: Callable[[np.ndarray, np.ndarray], float],
     time_budget: int,
+    n_iter: int = 6,
 ) -> GridSearchCV | RandomSearchCV:
     """Create a hyperparameter searcher for one model family."""
     if search == "grid":
@@ -496,11 +498,41 @@ def _build_searcher(
     return RandomSearchCV(
         model_class=model_class,
         param_distributions=search_space,
-        n_iter=6,
+        n_iter=n_iter,
         time_budget_seconds=time_budget,
         cv=cv,
         scoring_fn=scoring_fn,
     )
+
+
+def _budget_search_space(
+    spec: ModelSpec,
+    search_space: dict[str, list[Any]],
+    time_budget: int,
+) -> dict[str, list[Any]]:
+    """Trim expensive hyperparameters for short interactive runs."""
+    budgeted = {key: list(values) for key, values in search_space.items()}
+
+    if "RandomForest" in spec.name and time_budget <= 10:
+        budgeted["n_estimators"] = [10]
+        if "max_depth" in budgeted:
+            budgeted["max_depth"] = [5]
+
+    if "n_iterations" in budgeted and time_budget <= 5:
+        numeric_values = [value for value in budgeted["n_iterations"] if isinstance(value, int)]
+        if numeric_values:
+            budgeted["n_iterations"] = [min(numeric_values)]
+
+    return budgeted
+
+
+def _random_search_iterations(time_budget: int) -> int:
+    """Choose a bounded number of random samples for an interactive budget."""
+    if time_budget <= 2:
+        return 1
+    if time_budget <= 5:
+        return 2
+    return min(6, max(3, time_budget // 2))
 
 
 def _serialize_search_results(
@@ -625,7 +657,8 @@ class AutoFit:
         if y.shape[0] < 2:
             raise ValueError("AutoFit requires at least two samples.")
 
-        cv_splits = min(5, y.shape[0])
+        max_cv_splits = 3 if self.time_budget <= 30 else 5
+        cv_splits = min(max_cv_splits, y.shape[0])
         if cv_splits < 2:
             raise ValueError("AutoFit requires at least two samples for cross-validation.")
         cv = KFoldCV(n_splits=cv_splits, shuffle=True, random_state=42)
@@ -636,14 +669,21 @@ class AutoFit:
         best_model_name: str | None = None
         best_score = -np.inf
 
-        for spec, model_class in candidate_models:
+        run_start = time.perf_counter()
+        for index, (spec, model_class) in enumerate(candidate_models):
+            elapsed = time.perf_counter() - run_start
+            remaining_budget = max(1, int(self.time_budget - elapsed))
+            remaining_models = max(1, len(candidate_models) - index)
+            model_budget = max(1, remaining_budget // remaining_models)
+
             searcher = _build_searcher(
                 search=self.search,
                 model_class=model_class,
-                search_space=spec.search_space,
+                search_space=_budget_search_space(spec, spec.search_space, model_budget),
                 cv=cv,
                 scoring_fn=spec.scoring_fn,
-                time_budget=self.time_budget,
+                time_budget=model_budget,
+                n_iter=_random_search_iterations(model_budget),
             )
             searcher.fit(X_processed, y)
             all_search_results.extend(_serialize_search_results(spec.name, searcher.results_))
@@ -653,6 +693,9 @@ class AutoFit:
                 best_searcher = searcher
                 best_model_name = spec.name
                 best_score = searcher_score
+
+            if time.perf_counter() - run_start >= self.time_budget:
+                break
 
         all_search_results.sort(key=lambda item: item["score"], reverse=True)
 

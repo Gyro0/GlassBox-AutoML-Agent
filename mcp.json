@@ -10,18 +10,14 @@
   "tools": [
     {
       "name": "auto_fit",
-      "description": "Run end-to-end AutoML on a CSV dataset. The agent should pass the CSV either as an on-disk path (csv_path) or as base64-encoded bytes (csv_b64). Returns a JSON report with EDA summary, model leaderboard, the best model, its hyperparameters, the cross-validation score, and feature importances.",
+      "description": "Run end-to-end AutoML on a local CSV dataset. Pass the CSV as an on-disk path (csv_path) visible to the local MCP server. Returns a JSON report with EDA summary, model leaderboard, the best model, its hyperparameters, the cross-validation score, and feature importances.",
       "entrypoint": "glassbox.agent.mcp_tool:auto_fit_tool",
       "input_schema": {
         "type": "object",
         "properties": {
           "csv_path": {
             "type": "string",
-            "description": "Filesystem path to a CSV. Mutually exclusive with csv_b64."
-          },
-          "csv_b64": {
-            "type": "string",
-            "description": "Base64-encoded CSV body. Use when there is no host filesystem path to reference."
+            "description": "Filesystem path to a local CSV, for example data/_uploaded.csv."
           },
           "target_column": {
             "type": "string",
@@ -44,11 +40,7 @@
             "description": "Soft wall-clock cap (seconds) for random search."
           }
         },
-        "required": ["target_column"],
-        "oneOf": [
-          {"required": ["csv_path"]},
-          {"required": ["csv_b64"]}
-        ]
+        "required": ["csv_path", "target_column"]
       },
       "output_schema": {
         "type": "object",

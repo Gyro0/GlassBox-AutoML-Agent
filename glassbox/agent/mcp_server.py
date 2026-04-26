@@ -14,9 +14,11 @@ Run standalone::
     python -m glassbox.agent.mcp_server --transport streamable-http \\
         --host 127.0.0.1 --port 8765                              # HTTP for IronClaw
 
-The single tool, ``auto_fit``, is a thin FastMCP wrapper around
-:func:`glassbox.agent.mcp_tool.auto_fit_tool` so all input validation, base64
-decoding, and JSON-safe coercion stay in one place.
+The single tool, ``auto_fit``, is a path-mode FastMCP wrapper around
+:func:`glassbox.agent.mcp_tool.auto_fit_tool`. The lower-level helper still
+supports inline CSV bytes for direct Python use, but the MCP surface is kept
+path-only so agents do not try to invent base64 payloads when a local CSV path
+is available.
 """
 
 from __future__ import annotations
@@ -40,16 +42,14 @@ app = FastMCP("glassbox-automl")
 @app.tool()
 def auto_fit(
     target_column: str,
-    csv_path: str | None = None,
-    csv_b64: str | None = None,
+    csv_path: str,
     task: str = "auto",
     search: str = "random",
     time_budget: int = 120,
 ) -> dict[str, Any]:
     """Run end-to-end AutoML on a CSV and return a JSON report.
 
-    Provide exactly one of ``csv_path`` (filesystem) or ``csv_b64`` (base64-
-    encoded CSV bytes; use this when the agent has no host filesystem).
+    Provide ``csv_path`` as a filesystem path visible to the local MCP server.
 
     The returned report includes the EDA summary, model leaderboard, the best
     model with its hyperparameters and cross-validation score, feature
@@ -58,7 +58,6 @@ def auto_fit(
     """
     return auto_fit_tool(
         csv_path=csv_path,
-        csv_b64=csv_b64,
         target_column=target_column,
         task=task,
         search=search,

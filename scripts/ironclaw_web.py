@@ -359,8 +359,22 @@ INDEX_HTML = """<!doctype html>
       if (!r.ok) throw new Error(await r.text());
       uploadInfo = await r.json();
       const cols = uploadInfo.columns.length ? ` Columns: ${uploadInfo.columns.join(', ')}${uploadInfo.truncated_columns ? ', ...' : ''}` : '';
-      uploadState.textContent = `Uploaded to ${uploadInfo.path}.${cols}`;
+      const targetInput = document.getElementById('targetInput');
+      const resolvedTarget = resolveTargetColumn(uploadInfo.columns, targetInput.value);
+      const targetNote = resolvedTarget && resolvedTarget !== targetInput.value ? ` Target set to ${resolvedTarget}.` : '';
+      if (resolvedTarget) targetInput.value = resolvedTarget;
+      uploadState.textContent = `Uploaded to ${uploadInfo.path}.${cols}${targetNote}`;
       return uploadInfo;
+    }
+
+    function resolveTargetColumn(columns, currentTarget) {
+      if (!columns || !columns.length) return currentTarget;
+      const current = (currentTarget || '').trim();
+      if (columns.includes(current)) return current;
+      const lower = current.toLowerCase();
+      const caseMatch = columns.find((column) => column.toLowerCase() === lower);
+      if (caseMatch) return caseMatch;
+      return columns[columns.length - 1];
     }
 
     function openSocket(payload) {
@@ -514,6 +528,7 @@ def _build_context_block(
 ) -> str:
     notes = []
     tool_args = {}
+    columns = []
     if upload and upload.get("path"):
         column_text = ""
         columns = upload.get("columns") or []
@@ -525,9 +540,12 @@ def _build_context_block(
             f"{upload['path']}.{column_text} Use this path when calling GlassBox tools."
         )
         tool_args["csv_path"] = upload["path"]
-    if target.strip():
-        notes.append(f"The intended target column is {target.strip()}.")
-        tool_args["target_column"] = target.strip()
+    resolved_target, target_note = _resolve_target_column(columns, target)
+    if resolved_target:
+        notes.append(f"The intended target column is {resolved_target}.")
+        if target_note:
+            notes.append(target_note)
+        tool_args["target_column"] = resolved_target
     if task.strip() or search.strip() or budget.strip():
         clean_task = task.strip() or "auto"
         clean_search = search.strip() or "random"
@@ -551,10 +569,35 @@ def _build_context_block(
                 "When calling the GlassBox auto_fit MCP tool, use these exact argument names and values:",
                 _format_tool_args(tool_args),
                 "",
+                "CSV column names are case-sensitive. Use the exact target_column value shown above.",
+                "The local MCP tool accepts csv_path for uploaded files. Do not use csv_b64.",
                 "Do not call auto_fit with an empty argument object. Do not ask the user to confirm values already listed above.",
+                "Do not use shell, http, web_search, or other external tools to diagnose this local GlassBox AutoFit run.",
             ]
         )
     return "\n".join(lines)
+
+
+def _resolve_target_column(columns: list[str], target: str) -> tuple[str, str]:
+    clean_target = target.strip()
+    if not columns:
+        return clean_target, ""
+    if clean_target in columns:
+        return clean_target, ""
+    lower_target = clean_target.lower()
+    for column in columns:
+        if column.lower() == lower_target:
+            return (
+                column,
+                f"The user-entered target '{clean_target}' was resolved to the exact CSV header '{column}'.",
+            )
+    fallback = columns[-1]
+    if clean_target:
+        return (
+            fallback,
+            f"The user-entered target '{clean_target}' was not found in the CSV header, so the last CSV column '{fallback}' is being used as the target.",
+        )
+    return fallback, f"No target was entered, so the last CSV column '{fallback}' is being used as the target."
 
 
 def _format_tool_args(args: dict) -> str:
