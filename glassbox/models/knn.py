@@ -1,32 +1,14 @@
-"""K-Nearest Neighbours implemented from scratch using NumPy only.
+"""K-Nearest Neighbours implemented from scratch using NumPy.
 
-KNN is a *lazy* learner — all computation is deferred to prediction time.
-``fit`` simply memorises the training data; ``predict`` computes a full
-distance matrix between the test and training sets and aggregates the
-labels of the *k* nearest neighbours.
+Lazy learner — fit() just stores the training set; predict() computes
+the full distance matrix and aggregates the k nearest labels.
 
-Distance computation is fully vectorised: no Python loops over individual
-samples.  For a test set of shape (n_test, p) and training set of shape
-(n_train, p), the distance matrix has shape (n_test, n_train) and is
-computed in a single NumPy expression.
+Euclidean uses the ‖a−b‖² = ‖a‖² − 2aᵀb + ‖b‖² identity to avoid a
+3-D broadcast. Manhattan uses the explicit 3-D broadcast (fine for the
+dataset sizes GlassBox targets).
 
-Supported metrics
------------------
-* **euclidean** — L2 distance computed via the identity
-      ‖a − b‖² = ‖a‖² − 2aᵀb + ‖b‖²
-  which avoids an explicit (n_test, n_train, p) broadcast and keeps
-  memory usage at O(n_test · n_train).
-* **manhattan** — L1 distance; computed via a three-dimensional
-  broadcast ``|X_test[:, None, :] − X_train[None, :, :]|`` summed over
-  the last axis.  This requires O(n_test · n_train · p) memory, which is
-  fine for the dataset sizes expected in GlassBox.
-
-Task auto-detection
--------------------
-When ``task="auto"`` (default), ``fit`` inspects the target array *y*:
-if the dtype is integer-like **or** the number of unique values is ≤ 20,
-the task is treated as classification; otherwise as regression.  Set
-``task`` explicitly to override.
+When task='auto', the task is inferred from y: integer dtype or ≤20
+unique values → classification, otherwise → regression.
 """
 
 from __future__ import annotations

@@ -1,37 +1,13 @@
 """Gaussian Naïve Bayes classifier implemented from scratch using NumPy.
 
-The model assumes each feature is conditionally independent given the
-class label and follows a Gaussian distribution.  These assumptions are
-almost certainly violated in practice, yet the classifier is surprisingly
-robust and serves as an excellent fast baseline.
+Assumes features are conditionally independent and Gaussian given the class.
+Despite those assumptions rarely holding, it works surprisingly well as a fast baseline.
 
-Mathematics
------------
-Given a sample x, predict the class with the highest posterior:
+Prediction uses log-space to avoid underflow:
+    log P(C_k | x) ∝ log P(C_k) + Σ_j log N(x_j; μ_kj, σ²_kj)
 
-    P(C_k | x) ∝ P(C_k) · ∏_j P(x_j | C_k)
-
-where:
-
-    P(C_k) = (n_k + α) / (n + α · K)          (Laplace-smoothed prior)
-    P(x_j | C_k) = N(x_j; μ_kj, σ²_kj + ε)    (Gaussian likelihood)
-
-Working in log-space avoids numerical underflow when multiplying many
-small probabilities:
-
-    log P(C_k | x) ∝ log P(C_k) + Σ_j log P(x_j | C_k)
-
-Implementation notes
---------------------
-* **Variance floor** — a small ``var_smoothing`` constant is added to
-  every per-class per-feature variance.  This prevents log(0) when a
-  feature has zero variance within a class (e.g. a constant column).
-* **Laplace smoothing on priors** — prevents zero-probability classes on
-  unseen data when ``alpha > 0`` (default 1.0).
-* **Log-sum-exp trick** is not needed here because we only need the
-  argmax, not the actual posterior probabilities.  For ``predict_proba``
-  we subtract the max log-score before exponentiating for numerical
-  stability.
+var_smoothing adds a small floor to all variances (prevents log(0) on constant columns).
+alpha applies Laplace smoothing to the class priors.
 """
 
 from __future__ import annotations
@@ -171,11 +147,7 @@ class GaussianNaiveBayes(BaseModel):
     # Internal helpers
     # ------------------------------------------------------------------
     def _compute_log_posteriors(self, X: np.ndarray) -> np.ndarray:
-        """Return unnormalised log-posteriors, shape (n_samples, n_classes).
-
-        For each class k and sample i:
-            log P(C_k | x_i) ∝ log P(C_k) + Σ_j log N(x_ij; μ_kj, σ²_kj)
-        """
+        """Unnormalised log-posteriors, shape (n_samples, n_classes)."""
         self._validate_inputs(X)
         n_samples = X.shape[0]
         n_classes = len(self.classes_)  # type: ignore[arg-type]
@@ -184,7 +156,6 @@ class GaussianNaiveBayes(BaseModel):
         for idx in range(n_classes):
             mean = self.theta_[idx]       # shape (n_features,)
             var = self.var_[idx]          # shape (n_features,)
-
             # Log Gaussian likelihood: -0.5 * [log(2π σ²) + (x - μ)² / σ²]
             # Summed over features — broadcasting: X is (n, p), mean/var (p,)
             log_likelihood = -0.5 * np.sum(

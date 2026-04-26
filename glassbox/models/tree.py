@@ -1,31 +1,10 @@
-"""Decision tree models implemented from scratch using NumPy only.
+"""Decision tree models implemented from scratch using NumPy.
 
-This module provides two models built on a single shared recursive engine:
+DecisionTreeClassifier splits on Gini impurity; DecisionTreeRegressor on MSE.
 
-* **DecisionTreeClassifier** — splits using Gini impurity gain.
-* **DecisionTreeRegressor**  — splits using MSE variance reduction.
-
-Architecture
-------------
-The public classes delegate all tree-building logic to three private
-helpers:
-
-* ``_best_split``  — finds the optimal (feature, threshold) pair at a node.
-* ``_build_tree``  — recursive builder; returns the root ``_Node``.
-* ``_traverse``    — iterative predictor for a single sample.
-
-Keeping the helpers private and free of class state makes them easy to
-test in isolation and reusable by ``forest.py``.
-
-The ``max_features`` parameter enables feature subspace sampling, which
-is what ``RandomForest`` uses to decorrelate its trees.
-
-Complexity notes
-----------------
-* Training: O(n · p · n_nodes) where n = samples, p = features considered
-  per split. With ``max_features=sqrt(p)`` this becomes O(n · sqrt(p) · n_nodes).
-* Prediction: O(depth) per sample — uses an iterative loop, not recursion,
-  so there is no stack-overflow risk.
+Internal helpers (_best_split, _build_tree, _traverse) are kept separate
+from the public classes so they're easy to test and reused by forest.py.
+The max_features param enables feature subsampling for random forests.
 """
 
 from __future__ import annotations
