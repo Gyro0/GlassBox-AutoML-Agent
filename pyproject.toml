@@ -3,7 +3,7 @@ requires = ["setuptools>=65.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "glassbox"
+name = "glassbox-automl-agent"
 version = "0.1.0"
 description = "A transparent AutoML library built from scratch with NumPy"
 readme = "README.md"
