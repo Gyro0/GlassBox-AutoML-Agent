@@ -505,30 +505,18 @@ def _uploaded_columns(path: str) -> tuple[list[str], bool]:
     return columns[:MAX_CONTEXT_COLUMNS], len(columns) > MAX_CONTEXT_COLUMNS
 
 
-def _build_prompt(
-    prompt: str,
+def _build_run_blocks(
     upload: dict | None,
     target: str,
     task: str,
     search: str,
     budget: str,
-) -> str:
-    context = _build_context_block(upload, target, task, search, budget)
-    if not context:
-        return prompt
-    return prompt.rstrip() + "\n\n" + context
-
-
-def _build_context_block(
-    upload: dict | None,
-    target: str,
-    task: str,
-    search: str,
-    budget: str,
-) -> str:
+) -> tuple[str, str]:
+    """Return (directive, context) — directive goes at the top of the prompt,
+    context goes underneath the user message as prose background."""
     notes = []
-    tool_args = {}
-    columns = []
+    tool_args: dict[str, str | int] = {}
+    columns: list[str] = []
     if upload and upload.get("path"):
         column_text = ""
         columns = upload.get("columns") or []
@@ -559,23 +547,35 @@ def _build_context_block(
         tool_args["task"] = clean_task
         tool_args["search"] = clean_search
         tool_args["time_budget"] = _safe_int(clean_budget, 15)
-    if not notes:
-        return ""
-    lines = ["Context for this run:", "- " + "\n- ".join(notes)]
-    if tool_args:
-        lines.extend(
-            [
-                "",
-                "When calling the GlassBox auto_fit MCP tool, use these exact argument names and values:",
-                _format_tool_args(tool_args),
-                "",
-                "CSV column names are case-sensitive. Use the exact target_column value shown above.",
-                "The local MCP tool accepts csv_path for uploaded files. Do not use csv_b64.",
-                "Do not call auto_fit with an empty argument object. Do not ask the user to confirm values already listed above.",
-                "Do not use shell, http, web_search, or other external tools to diagnose this local GlassBox AutoFit run.",
-            ]
-        )
-    return "\n".join(lines)
+
+    has_required = "csv_path" in tool_args and "target_column" in tool_args
+    directive = _build_tool_directive(tool_args) if has_required else ""
+    context = "Context for this run:\n- " + "\n- ".join(notes) if notes else ""
+    return directive, context
+
+
+def _build_tool_directive(tool_args: dict) -> str:
+    """A delimited, top-of-prompt directive that small models won't skim past."""
+    return "\n".join(
+        [
+            "[REQUIRED FIRST ACTION]",
+            "Call the MCP tool `auto_fit` immediately, with these EXACT arguments.",
+            "Do not call auto_fit with an empty argument object. Do not modify the values.",
+            "Do not ask the user to confirm — these values are already chosen.",
+            "",
+            _format_tool_args(tool_args),
+            "",
+            "After the tool returns, summarize the best model, its CV score, and top features.",
+            "Do not use shell, http, web_search, or any other tool to diagnose this run.",
+            "The local MCP tool accepts csv_path for uploaded files. Do not use csv_b64.",
+            "[/REQUIRED FIRST ACTION]",
+        ]
+    )
+
+
+def _compose_prompt(user_prompt: str, directive: str, context: str) -> str:
+    parts = [part for part in (directive, user_prompt.rstrip(), context) if part]
+    return "\n\n".join(parts)
 
 
 def _resolve_target_column(columns: list[str], target: str) -> tuple[str, str]:
@@ -622,18 +622,20 @@ def _safe_int(value: str, default: int) -> int:
 
 def _build_followup_prompt(
     original_prompt: str,
-    context_block: str,
+    directive: str,
+    context: str,
     transcript: list[tuple[str, str]],
 ) -> str:
     transcript_text = _format_transcript(transcript)
-    return (
+    body = (
         "Continue this GlassBox/IronClaw conversation. Preserve the user's uploaded CSV context and tool settings.\n\n"
         f"Original user request:\n{original_prompt.strip()}\n\n"
-        f"{context_block}\n\n"
+        f"{context}\n\n"
         "Conversation so far:\n"
         f"{transcript_text}\n\n"
-        "Respond to the latest user message. If enough information is now available, call the GlassBox auto_fit MCP tool with the exact arguments from the context block."
+        "Respond to the latest user message. If enough information is now available, call the GlassBox auto_fit MCP tool with the exact arguments from the [REQUIRED FIRST ACTION] block above."
     )
+    return _compose_prompt(body, directive, "")
 
 
 def _format_transcript(transcript: list[tuple[str, str]]) -> str:
@@ -890,8 +892,8 @@ async def ask_ws(websocket: WebSocket) -> None:
     task = str(first.get("task", ""))
     search = str(first.get("search", ""))
     budget = str(first.get("budget", ""))
-    context_block = _build_context_block(upload, target, task, search, budget)
-    prompt = cleaned if not context_block else cleaned + "\n\n" + context_block
+    directive, context_block = _build_run_blocks(upload, target, task, search, budget)
+    prompt = _compose_prompt(cleaned, directive, context_block)
 
     transcript: list[tuple[str, str]] = [("User", cleaned)]
     control_queue: asyncio.Queue[dict] = asyncio.Queue()
@@ -942,7 +944,7 @@ async def ask_ws(websocket: WebSocket) -> None:
             if not reply:
                 continue
             transcript.append(("User", reply))
-            current_prompt = _build_followup_prompt(cleaned, context_block, transcript)
+            current_prompt = _build_followup_prompt(cleaned, directive, context_block, transcript)
     finally:
         stop_event.set()
         receiver_task.cancel()

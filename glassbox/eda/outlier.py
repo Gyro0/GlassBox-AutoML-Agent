@@ -20,6 +20,7 @@ def _percentile(sorted_values: np.ndarray, q: float) -> float:
     weight = position - lower_index
     lower_value = float(sorted_values[lower_index])
     upper_value = float(sorted_values[upper_index])
+    # It gives smooth Q1 and Q3 values even when the percentile falls between two data points.
     return lower_value + (upper_value - lower_value) * weight
 
 

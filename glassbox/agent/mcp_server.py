@@ -24,7 +24,7 @@ is available.
 from __future__ import annotations
 
 import argparse
-from typing import Any
+from typing import Annotated, Any, Literal
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -34,6 +34,8 @@ except ImportError as exc:  # pragma: no cover - guidance for unconfigured envs
         "Install with: pip install -e .[mcp]"
     ) from exc
 
+from pydantic import Field
+
 from glassbox.agent.mcp_tool import auto_fit_tool
 
 app = FastMCP("glassbox-automl")
@@ -41,15 +43,59 @@ app = FastMCP("glassbox-automl")
 
 @app.tool()
 def auto_fit(
-    target_column: str,
-    csv_path: str,
-    task: str = "auto",
-    search: str = "random",
-    time_budget: int = 120,
+    target_column: Annotated[
+        str,
+        Field(
+            description=(
+                "Exact CSV header name of the column to predict. Case-sensitive; "
+                "must match a header from the CSV at csv_path. "
+                "Example: 'median_house_value'."
+            ),
+        ),
+    ],
+    csv_path: Annotated[
+        str,
+        Field(
+            description=(
+                "Filesystem path to the local CSV, visible to this server. "
+                "For uploads from the IronClaw web demo, use 'data/_uploaded.csv'."
+            ),
+        ),
+    ],
+    task: Annotated[
+        Literal["auto", "classification", "regression"],
+        Field(
+            description=(
+                "Problem type. Use 'auto' to infer from the target column dtype, "
+                "or set explicitly to 'classification' or 'regression'."
+            ),
+        ),
+    ] = "auto",
+    search: Annotated[
+        Literal["random", "grid"],
+        Field(
+            description=(
+                "Hyperparameter search strategy: 'random' samples within "
+                "time_budget; 'grid' enumerates a small fixed grid."
+            ),
+        ),
+    ] = "random",
+    time_budget: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=300,
+            description=(
+                "Soft wall-clock cap (seconds) for random search. "
+                "Typical values: 15 for quick demos, 60-120 for real runs."
+            ),
+        ),
+    ] = 120,
 ) -> dict[str, Any]:
     """Run end-to-end AutoML on a CSV and return a JSON report.
 
-    Provide ``csv_path`` as a filesystem path visible to the local MCP server.
+    Always supply ``csv_path`` and ``target_column`` — both are required and
+    must be drawn from the user's context, never invented or left empty.
 
     The returned report includes the EDA summary, model leaderboard, the best
     model with its hyperparameters and cross-validation score, feature
