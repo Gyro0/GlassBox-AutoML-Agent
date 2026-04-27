@@ -17,9 +17,23 @@ Core library modules are built from scratch with NumPy only. No Scikit-Learn cod
 
 ## Installation
 
-Create and activate a virtual environment, then install dependencies:
+### From PyPI
+
+Install the published package:
 
 ```bash
+python3 -m pip install glassbox-automl-agent
+```
+
+PyPI project page: [glassbox-automl-agent](https://pypi.org/project/glassbox-automl-agent/).
+
+### Manual Installation From Repository
+
+Clone the repository, create and activate a virtual environment, then install dependencies:
+
+```bash
+git clone https://github.com/Gyro0/GlassBox-AutoML-Agent.git
+cd GlassBox-AutoML-Agent
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -r requirements.txt
